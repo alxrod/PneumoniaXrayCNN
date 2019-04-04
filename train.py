@@ -26,14 +26,14 @@ def train():
 		next_element = iterator.get_next()
 		training_init_op = iterator.make_initializer(dataset)
 
-		fillerX = np.zeros((model.BATCH_SIZE,64,64,1))
-		fillerY = np.zeros((model.BATCH_SIZE,))
+		fillerX = np.zeros((model.BATCH_SIZE,64,64,1)).astype(float)
+		fillerY = np.zeros((model.BATCH_SIZE,1)).astype(float)
 
-		inputLabels = tf.placeholder(tf.float32, shape=(model.BATCH_SIZE), name="inputLabels")
+		inputLabels = tf.placeholder(tf.float32, shape=(model.BATCH_SIZE,1), name="inputLabels")
 		inputImages = tf.placeholder(tf.float32, shape=(model.BATCH_SIZE,64,64,1), name="inputLabels")
 		
 		logits = model.model(inputImages)
-		just_softmax = tf.nn.softmax(logits)
+		just_sigmoid = tf.nn.sigmoid(logits)
 		loss = model.loss(logits, inputLabels)
 		train_op = model.train(loss, global_step)
 
@@ -62,6 +62,8 @@ def train():
 				               examples_per_sec, sec_per_batch))
 
 		with tf.train.MonitoredTrainingSession(
+# 		This will pick up where it left off!
+# 		If you need to restart, empty the log directory
 			checkpoint_dir="./log",
 			hooks=[tf.train.StopAtStepHook(last_step=100000),
 				   tf.train.NanTensorHook(loss),
@@ -74,7 +76,20 @@ def train():
 			while not mon_sess.should_stop():
 				try:
 					elem = mon_sess.run(next_element, feed_dict={inputImages: fillerX, inputLabels: fillerY})
-					mon_sess.run(train_op, feed_dict={inputImages: elem[0], inputLabels: elem[1]})
+# 					print("labels:")
+# 					print("test:")
+# 					print([elem[1]].shape())
+# 					print(elem[1].reshape((32,1)).astype(float))
+# 					print("output:")
+					actuals = np.array(elem[1].reshape((32,1)).astype(float), dtype=np.float32)
+					predictions = np.round(mon_sess.run(just_sigmoid, feed_dict={inputImages: elem[0], inputLabels: elem[1].reshape((32,1)).astype(float)}))
+					print ("Accuracy:")
+# 					print (actuals)
+# 					print (predictions)
+					print (float(np.sum(actuals==predictions))/actuals.shape[0] * 100)
+					mon_sess.run(train_op, feed_dict={inputImages: elem[0], inputLabels: elem[1].reshape((32,1)).astype(float)})
+					
+# 					print(mon_sess.run(just_softmax, feed_dict={inputImages: elem[0], inputLabels: elem[1]}))
 				except tf.errors.OutOfRangeError:
 					mon_sess.run(training_init_op, feed_dict={inputImages: fillerX, inputLabels: fillerY})
 					print("End of training dataset.")

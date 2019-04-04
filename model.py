@@ -66,15 +66,16 @@ def model(images):
 		local4 = tf.nn.relu(tf.matmul(local3, weights) + biases, name=scope.name)
 
 	with tf.variable_scope("softmax_linear") as scope:
-		weights = _makeRandomizedVariable("weights", [192, NUM_CLASSES], stddev=1/192.0)
-		biases = _makeVariable("biases", [NUM_CLASSES], tf.constant_initializer(0.0))
+# 	Im working on this now. Originally, I was using the number of classes but now Im using 1, because Zac said thats how it cna work. 
+		weights = _makeRandomizedVariable("weights", [192, 1], stddev=1/192.0)
+		biases = _makeVariable("biases", [1,], tf.constant_initializer(0.0))
 		softmax_linear = tf.add(tf.matmul(local4,weights), biases, name=scope.name)
 
 	return softmax_linear
 
 def loss(logits, labels):
-	labels = tf.cast(labels, tf.int64)
-	cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
+	labels = tf.cast(labels, tf.float32)
+	cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(
 		labels=labels, logits=logits, name="cross_entropy_per_example")
 	cross_entropy_mean = tf.reduce_mean(cross_entropy, name="cross_entropy")
 	tf.add_to_collection("losses",cross_entropy_mean)
